@@ -5,6 +5,6 @@
 		glfw glfw2 glfw3 glew
 		vulkan-headers
 		vulkan-tools
-		
+	    gdb	
 	];
 	}

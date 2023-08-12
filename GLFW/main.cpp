@@ -61,6 +61,32 @@ namespace GLFWCallbacksAndInitialization
 // TODO: Window resizing
 // TODO (?): Full screen?
 // TODO: Make simple physics scene to ARGB for GLFW dispaly
+// TODO: Move physics update to different file for more complex files
+
+constexpr Sphere UpdateSphere(const Sphere& InSphereToUpdate, const float& TimeStep,
+    const int& ReflectMinX, const int& ReflectMaxX, const int& ReflectMinY, const int& ReflectMaxY)
+{
+    Sphere ReturnSphere = InSphereToUpdate;
+
+    ReturnSphere.Center.X = InSphereToUpdate.Center.X + (int)(InSphereToUpdate.Velocity.X * TimeStep);
+
+    ReturnSphere.Center.Y = InSphereToUpdate.Center.Y + (int)(InSphereToUpdate.Velocity.Y * TimeStep);
+
+    
+    if(ReturnSphere.Center.X < ReflectMinX
+        || ReturnSphere.Center.X > ReflectMaxX)
+    {
+        ReturnSphere.Velocity.X = -ReturnSphere.Velocity.X;
+    }
+
+    if(ReturnSphere.Center.Y < ReflectMinY
+        || ReturnSphere.Center.Y > ReflectMaxY)
+    {
+        ReturnSphere.Velocity.Y = -ReturnSphere.Velocity.Y;
+    }
+
+    return ReturnSphere;
+}
 
 int main(void)
 {
@@ -73,7 +99,7 @@ int main(void)
     constexpr SimplePixelArray<WindowWidth, WindowHeight> OriginalDisplayPixels =
              GenerateSimpleColor<WindowWidth, WindowHeight>(255, 255, 255);    
 
-    constexpr Sphere SphereToDrawOne = CreateSphere(WindowWidth * 0.33, WindowHeight * 0.5, WindowWidth * 0.1);
+    Sphere SphereToDraw = CreateSphere(Vector2<int>((int)(WindowWidth * 0.33), (int)(WindowHeight * 0.5)), WindowWidth * 0.1, Vector2<int>(5, 2));
     
 
 	while(window && !glfwWindowShouldClose(window))
@@ -87,15 +113,20 @@ int main(void)
         //        https://www.glfw.org/GLFWReference27.pdf
         //        Looking at the table of contents        
         // TODO: Just skip directly to VULKAN and remove -lGL from build script
-    
-        constexpr SimplePixelArray<WindowWidth, WindowHeight> DisplayPixels 
-            = GenerateSimpleColor<WindowWidth, WindowHeight>(125, 125, 125, OriginalDisplayPixels, SphereToDrawOne);        
+        
+        // fprintf(stdout, "Starting to go through full loop\n");
+        SimplePixelArray<WindowWidth, WindowHeight> DisplayPixels 
+            = GenerateSimpleColor<WindowWidth, WindowHeight>(125, 125, 125, OriginalDisplayPixels, SphereToDraw);        
 
+        // fprintf(stdout, "Drawing Pixels\n");
         glDrawPixels(WindowWidth, WindowHeight, GL_RGB, GL_UNSIGNED_BYTE, &DisplayPixels.PixelData);
 	
+        // fprintf(stdout, "GLFW Polling events\n");
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-	}
+
+        SphereToDraw = UpdateSphere(SphereToDraw, 1.0, 0, WindowWidth, 0, WindowHeight); 
+    }
 
 	glfwDestroyWindow(window);
 

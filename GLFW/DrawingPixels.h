@@ -13,6 +13,9 @@ struct Vector2
 {
     NumericType X;
     NumericType Y;
+
+    constexpr Vector2(NumericType InX, NumericType InY) { this->X = InX; this->Y = InY; };
+    constexpr Vector2() : X(0), Y(0) { };
 };
 
 struct Sphere
@@ -20,9 +23,16 @@ struct Sphere
     union
     {
         Vector2<int> Center;
-        int C[2];
+        int q[2];
+    };
+    union 
+    {
+        Vector2<int> Velocity;
+        int p[2];
     };
     int Radius;
+
+    constexpr Sphere() : Center(), Velocity(), Radius(0) { };
 };
 
 
@@ -32,7 +42,7 @@ struct SimplePixelArray
 public:
     GLFWPixel PixelData[Width*Height] = {};
 
-    constexpr GLFWPixel& GetPixel(int x, int y) { return PixelData[x*Width + y]; };
+    constexpr GLFWPixel& GetPixel(int x, int y) { return PixelData[y*Width + x]; };
 };
 
 template<int Width, int Height>
@@ -58,6 +68,20 @@ constexpr Sphere CreateSphere(int CenterX, int CenterY, int Radius)
     ReturnObject.Center.X = CenterX;
     ReturnObject.Center.Y = CenterY;
     ReturnObject.Radius = Radius;
+    
+   return ReturnObject;
+}
+
+constexpr Sphere CreateSphere(Vector2<int> Position, int Radius, Vector2<int> Velocity)
+{
+    Sphere ReturnObject = Sphere();
+
+    ReturnObject.Center.X = Position.X;
+    ReturnObject.Center.Y = Position.Y;
+    ReturnObject.Radius = Radius;
+
+    ReturnObject.Velocity.X = Velocity.X;
+    ReturnObject.Velocity.Y = Velocity.Y;
     
    return ReturnObject;
 }
