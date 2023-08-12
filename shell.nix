@@ -1,10 +1,10 @@
 { pkgs ? import <nixpkgs> {} }:
 	pkgs.mkShell {
 	 nativeBuildInputs = with pkgs; [
-		gcc
+		gcc clang
 		glfw glfw2 glfw3 glew
-		vulkan-headers
-		vulkan-tools
+		vulkan-headers vulkan-loader
+		vulkan-tools glslang
 	    gdb	
 	];
 	}
