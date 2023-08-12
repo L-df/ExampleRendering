@@ -62,6 +62,13 @@ constexpr Sphere CreateSphere(int CenterX, int CenterY, int Radius)
    return ReturnObject;
 }
 
+template<typename NumericType>
+constexpr NumericType Square(NumericType X)
+{
+    NumericType ReturnVal = X * X;
+    return ReturnVal;
+}
+
 template<int Width, int Height>
 constexpr SimplePixelArray<Width, Height> 
     GenerateSimpleColor(
@@ -71,14 +78,16 @@ constexpr SimplePixelArray<Width, Height>
 {
     SimplePixelArray<Width, Height> ReturnArray = BaseImageToChange;
 
+    int RadiusSquared = Square(SphereToDraw.Radius);    
+
     for(int HeightIndex = 0; HeightIndex < Height; HeightIndex++)
     {
-        int HeightDifference = std::abs(HeightIndex - SphereToDraw.Center.Y);
+        int HeightDifference = Square(HeightIndex - SphereToDraw.Center.Y);
         
         for(int WidthIndex = 0; WidthIndex < Width; WidthIndex++)
         {
-            int WidthDifference = std::abs(WidthIndex - SphereToDraw.Center.X);
-            if(HeightDifference + WidthDifference < SphereToDraw.Radius)
+            int WidthDifference = Square(WidthIndex - SphereToDraw.Center.X);
+            if(HeightDifference + WidthDifference < RadiusSquared)
             {
                 ReturnArray.GetPixel(WidthIndex, HeightIndex).r = r;
                 ReturnArray.GetPixel(WidthIndex, HeightIndex).g = g;
