@@ -4,7 +4,7 @@
 		gcc clang
 		glfw glfw2 glfw3 glew
 		vulkan-headers vulkan-loader
-		vulkan-tools glslang
+		vulkan-tools glslang vulkan-validation-layers
 	    gdb	
 	];
 	}

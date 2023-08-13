@@ -71,15 +71,8 @@ namespace VulkanCallbacksAndInitialization
         VulkanCreateInfo.ppEnabledExtensionNames = AllRequiredExtensions.data();
         
         static const std::vector<const char*> AllRequiredValidationLayers = 
-            //{ "VK_LAYER_KHRONOS_validation" };
-            {};
-        // NOTE: VK_LAYER_KHRONOS_validation is not available
-        /* Available Layers:
-	            VK_LAYER_VALVE_steam_overlay_64
-	            VK_LAYER_VALVE_steam_fossilize_64
-	            VK_LAYER_VALVE_steam_overlay_32
-	            VK_LAYER_VALVE_steam_fossilize_32
-        */
+            { "VK_LAYER_KHRONOS_validation" };
+        
         VulkanCreateInfo.enabledLayerCount = AllRequiredValidationLayers.size();
         VulkanCreateInfo.ppEnabledLayerNames = AllRequiredValidationLayers.data();
 
