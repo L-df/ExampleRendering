@@ -54,6 +54,8 @@ namespace VulkanCallbacksAndInitialization
     // TODO: Pass as parameter
     VkDebugUtilsMessengerEXT GlobalVulkanDebugMessenger = {};
 
+
+    // TODO: Save the available extensions and layers as some output
     VkInstance VulkanInit()
     {
         // TODO: Save to some type of struct that can be memory managed on main with stack allocation
@@ -161,6 +163,84 @@ namespace VulkanCallbacksAndInitialization
 
         return VulkanInstance;
     }
+
+    // NOTE: After setting all the required extensions and required layers
+    //         and getting all the available extensions and layers
+    //         We still have to setup the connection to the GPU
+    VkPhysicalDevice SelectGPU(VkInstance& VulkanInstance)
+    {
+        uint32_t AllAvailableGraphicsCards_Count = 0;
+        vkEnumeratePhysicalDevices(VulkanInstance, &AllAvailableGraphicsCards_Count, nullptr);
+        
+        VkPhysicalDevice ReturnChosenGPU = VK_NULL_HANDLE;
+        
+        if(AllAvailableGraphicsCards_Count > 0)
+        {
+            // TODO: Save the list of available graphics cards
+            std::vector<VkPhysicalDevice> GraphicsCards(AllAvailableGraphicsCards_Count);
+            vkEnumeratePhysicalDevices(VulkanInstance, &AllAvailableGraphicsCards_Count, GraphicsCards.data());
+#if defined(PRINT_AVAILABLE_VULKAN_EXTENSIONS_AND_LAYERS) && PRINT_AVAILABLE_VULKAN_EXTENSIONS_AND_LAYERS
+            fprintf(stdout, "\n\t Available Graphics Cards: ");
+            for(VkPhysicalDevice& AvailableGCard : GraphicsCards)
+            {
+                VkPhysicalDeviceProperties DeviceProperties;
+                vkGetPhysicalDeviceProperties(AvailableGCard, &DeviceProperties);
+                VkPhysicalDeviceFeatures DeviceFeatures;
+                vkGetPhysicalDeviceFeatures(AvailableGCard, &DeviceFeatures);
+                
+                fprintf(stdout, "\n\t %s - ", DeviceProperties.deviceName);
+                switch(DeviceProperties.deviceType)
+                {
+                    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: { fprintf(stdout, "Integrated GPU\n"); break; };
+                    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: { fprintf(stdout, "Discrete GPU\n"); break; };
+                    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: { fprintf(stdout, "Virtual GPU\n"); break; };
+                    case VK_PHYSICAL_DEVICE_TYPE_CPU: { fprintf(stdout, "CPU"); break; };
+                    default: { fprintf(stdout, "Other (?)"); break; };
+                } 
+            }
+#endif
+            
+            // TODO: For a more fully features, allow for falling back to integrated GPUs    
+            for(VkPhysicalDevice& AvailableGCard : GraphicsCards)
+            {
+                VkPhysicalDeviceProperties DeviceProperties;
+                vkGetPhysicalDeviceProperties(AvailableGCard, &DeviceProperties);
+                VkPhysicalDeviceFeatures DeviceFeatures;
+                vkGetPhysicalDeviceFeatures(AvailableGCard, &DeviceFeatures);
+
+                uint32_t QueueFamilyCount = 0;
+                vkGetPhysicalDeviceQueueFamilyProperties(AvailableGCard, &QueueFamilyCount, nullptr);
+                std::vector<VkQueueFamilyProperties> QueueFamilies(QueueFamilyCount);
+                vkGetPhysicalDeviceQueueFamilyProperties(AvailableGCard, &QueueFamilyCount, QueueFamilies.data());
+                
+                // TODO: Save int and return it for which queue family supports what we want
+                bool DoesThisGraphicsCardSupport = false;  
+                for(const VkQueueFamilyProperties& QueueFamily : QueueFamilies)
+                {
+                    if(QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+                    {
+                        DoesThisGraphicsCardSupport = true;
+                        break;
+                    }
+                }
+               
+                if( DeviceFeatures.geometryShader && 
+                    (DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU 
+                        || DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+                    && DoesThisGraphicsCardSupport)
+                {
+                    ReturnChosenGPU = AvailableGCard;                    
+                }
+                
+            }
+        }
+        else
+        {
+            fprintf(stderr, "No Graphics Cards Found\n");
+        }
+         
+        return ReturnChosenGPU;
+    }
 };
 
 
@@ -253,6 +333,8 @@ int main(void)
 	GLFWwindow* window = GLFWCallbacksAndInitialization::CreateAndInitializeGLFWwindow();
 
     VkInstance VulkanInstance = VulkanCallbacksAndInitialization::VulkanInit();
+
+    VkPhysicalDevice ChosenGPU = VulkanCallbacksAndInitialization::SelectGPU(VulkanInstance);
 
 	// TODO: Framebuffer size callback
 
