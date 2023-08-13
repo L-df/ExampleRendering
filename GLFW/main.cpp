@@ -164,16 +164,37 @@ namespace VulkanCallbacksAndInitialization
         return VulkanInstance;
     }
 
+    // NOTE: No idea on relative sizes
+    // TODO: Reorder for better packing efficiency
+    struct GPUInfo
+    {
+        VkPhysicalDevice PhysDevice;
+        VkPhysicalDeviceProperties VulkanProperties;
+        VkPhysicalDeviceFeatures VulkanFeatures;
+        std::vector<VkQueueFamilyProperties> QueuesAvailable;
+    };
+
+    struct SelectedGPUData
+    {
+        VkDevice ChosenDevice;
+        VkQueue ChosenQueue;
+        GPUInfo SelectedInfo;
+        VkQueueFamilyProperties SelectedQueueInfo;
+        std::vector<GPUInfo> AllAvailableGPUs;
+    };
+
     // NOTE: After setting all the required extensions and required layers
     //         and getting all the available extensions and layers
     //         We still have to setup the connection to the GPU
-    VkPhysicalDevice SelectGPU(VkInstance& VulkanInstance)
+    SelectedGPUData SelectGPU(VkInstance& VulkanInstance)
     {
         uint32_t AllAvailableGraphicsCards_Count = 0;
         vkEnumeratePhysicalDevices(VulkanInstance, &AllAvailableGraphicsCards_Count, nullptr);
         
         VkPhysicalDevice ReturnChosenGPU = VK_NULL_HANDLE;
-        
+        uint32_t ChosenGPUAcceptableQueue = 0; 
+
+        SelectedGPUData AllGPUData = {};
         if(AllAvailableGraphicsCards_Count > 0)
         {
             // TODO: Save the list of available graphics cards
@@ -214,12 +235,16 @@ namespace VulkanCallbacksAndInitialization
                 vkGetPhysicalDeviceQueueFamilyProperties(AvailableGCard, &QueueFamilyCount, QueueFamilies.data());
                 
                 // TODO: Save int and return it for which queue family supports what we want
-                bool DoesThisGraphicsCardSupport = false;  
-                for(const VkQueueFamilyProperties& QueueFamily : QueueFamilies)
-                {
+                bool DoesThisGraphicsCardSupport = false;
+                uint32_t AcceptableQueueIndex = 0;
+                for(uint32_t QueueFamilyIndex = 0; QueueFamilyIndex < QueueFamilies.size(); QueueFamilyIndex++)
+                {   
+                    const VkQueueFamilyProperties& QueueFamily = QueueFamilies[QueueFamilyIndex];
+              
                     if(QueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
                     {
                         DoesThisGraphicsCardSupport = true;
+                        AcceptableQueueIndex = QueueFamilyIndex;
                         break;
                     }
                 }
@@ -229,17 +254,66 @@ namespace VulkanCallbacksAndInitialization
                         || DeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
                     && DoesThisGraphicsCardSupport)
                 {
-                    ReturnChosenGPU = AvailableGCard;                    
+                    ReturnChosenGPU = AvailableGCard;          
+                    ChosenGPUAcceptableQueue = AcceptableQueueIndex;
                 }
-                
+                GPUInfo IteratingGPUInfo = {};
+                IteratingGPUInfo.PhysDevice = AvailableGCard;
+                IteratingGPUInfo.VulkanProperties = DeviceProperties;    
+                IteratingGPUInfo.VulkanFeatures = DeviceFeatures;
+                IteratingGPUInfo.QueuesAvailable = QueueFamilies;
+                AllGPUData.AllAvailableGPUs.push_back(IteratingGPUInfo);
             }
         }
         else
         {
             fprintf(stderr, "No Graphics Cards Found\n");
         }
-         
-        return ReturnChosenGPU;
+        
+        // TODO: Separate querying from using data - Different function which selects the best
+        //            and then different function for actually creating the GPU queue
+        if(ReturnChosenGPU != VK_NULL_HANDLE)
+        {
+            VkDeviceQueueCreateInfo QueueCreationInfo = {};
+            QueueCreationInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            QueueCreationInfo.queueFamilyIndex = ChosenGPUAcceptableQueue;
+            QueueCreationInfo.queueCount = 1;
+            float Queuepriority = 1.f;
+            QueueCreationInfo.pQueuePriorities = &Queuepriority;
+            
+            // TODO: Be more mindful of available features
+            VkPhysicalDeviceFeatures ChosenFeatures = {};
+            VkDeviceCreateInfo DeviceCreationInfo = {};
+            DeviceCreationInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+            DeviceCreationInfo.pQueueCreateInfos = &QueueCreationInfo;
+            DeviceCreationInfo.queueCreateInfoCount = 1;
+            DeviceCreationInfo.pEnabledFeatures = &ChosenFeatures;
+            
+            // Device specific validation layers
+
+            static const std::vector<const char*> DeviceRequiredValidationLayers = 
+                    { "VK_LAYER_KHRONOS_validation" };
+            static const std::vector<const char*> DeviceRequiredExtensions = {};
+
+            DeviceCreationInfo.enabledLayerCount = DeviceRequiredValidationLayers.size();
+            DeviceCreationInfo.ppEnabledLayerNames = DeviceRequiredValidationLayers.data();
+    
+            DeviceCreationInfo.enabledExtensionCount = DeviceRequiredExtensions.size();
+            DeviceCreationInfo.ppEnabledExtensionNames = DeviceRequiredExtensions.data();
+            
+            VkResult VulkanDeviceCreationResult = vkCreateDevice(ReturnChosenGPU, &DeviceCreationInfo, nullptr, &AllGPUData.ChosenDevice );
+
+            switch(VulkanDeviceCreationResult)
+            {
+                case VK_SUCCESS: { break; };
+                // TODO: More explicit error output
+                default: { fprintf(stderr, "Failed To Create Vulkan Device\n"); break; };
+            }          
+
+            vkGetDeviceQueue(AllGPUData.ChosenDevice, ChosenGPUAcceptableQueue, 0, &AllGPUData.ChosenQueue);
+            
+        }
+        return AllGPUData;
     }
 };
 
@@ -334,7 +408,10 @@ int main(void)
 
     VkInstance VulkanInstance = VulkanCallbacksAndInitialization::VulkanInit();
 
-    VkPhysicalDevice ChosenGPU = VulkanCallbacksAndInitialization::SelectGPU(VulkanInstance);
+    // TODO: Refactor into separate functions for querying for the set of available GPUs vs 
+    //          actually creating one
+    //          For this demo it probably doesn't matter that much since we're just using the integrated GPU
+    VulkanCallbacksAndInitialization::SelectedGPUData ChosenGPU = VulkanCallbacksAndInitialization::SelectGPU(VulkanInstance);
 
 	// TODO: Framebuffer size callback
 
@@ -377,6 +454,7 @@ int main(void)
     {
         VulkanDestroyCallback(VulkanInstance, VulkanCallbacksAndInitialization::GlobalVulkanDebugMessenger, nullptr);
     }
+    vkDestroyDevice(ChosenGPU.ChosenDevice, nullptr);
     vkDestroyInstance(VulkanInstance, nullptr);        
     // TODO: Should the shutdown be moved to their own functions in the namespaces?    
 
