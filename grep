@@ -117,27 +117,22 @@ namespace VulkanCallbacksAndInitialization
         std::vector<VkLayerProperties> AvailableLayerNames (AvailableLayerCount);
         vkEnumerateInstanceLayerProperties(&AvailableLayerCount, AvailableLayerNames.data());
         
-#if defined(PRINT_AVAILABLE_VULKAN_EXTENSIONS_AND_LAYERS) && PRINT_AVAILABLE_VULKAN_EXTENSIONS_AND_LAYERS
         fprintf(stdout, "\n\tAvailableLayers:\n");
         for(const auto& LayerProperties : AvailableLayerNames)
         {
             fprintf(stdout, "\t%s\n", LayerProperties.layerName);
         }
-#endif
 
         uint32_t AvailableExtensionCount = 0;
         VkResult AvailableExtensionResult = vkEnumerateInstanceExtensionProperties(nullptr, &AvailableExtensionCount, nullptr);
         std::vector<VkExtensionProperties> AllAvailableExtensions (AvailableExtensionCount);
         AvailableExtensionResult = vkEnumerateInstanceExtensionProperties(nullptr, &AvailableExtensionCount, AllAvailableExtensions.data());
         
-
-#if defined(PRINT_AVAILABLE_VULKAN_EXTENSIONS_AND_LAYERS) && PRINT_AVAILABLE_VULKAN_EXTENSIONS_AND_LAYERS
         fprintf(stdout, "\n\tAvailable Extensions:\n");
         for(const auto& ExtensionProperties : AllAvailableExtensions)
         {
             fprintf(stdout, "\t%s\n", ExtensionProperties.extensionName);
         }
-#endif
 
         auto ExtensionFunctionForCallback = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(VulkanInstance, "vkCreateDebugUtilsMessengerEXT");
         if(ExtensionFunctionForCallback)
