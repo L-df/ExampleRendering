@@ -6,6 +6,9 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
+// TODO: Custom vectors/arenas/sets/etc
+#include <vector>
+
 #include "DrawingPixels.h"
 
 static const int WindowWidth = 640;
@@ -35,6 +38,7 @@ namespace VulkanCallbacksAndInitialization
         const VkDebugUtilsMessengerCallbackDataEXT* CallbackData, /* ? */
         void* UserData  /* ? */)
     {
+        
         // NOTE: Should I swap this to std::cout/std::cerr?
         fprintf(stderr, "Vulkan Validation Layer: ");
         fprintf(stderr, "%s", CallbackData->pMessage);
@@ -55,19 +59,49 @@ namespace VulkanCallbacksAndInitialization
         VulkanCreateInfo.pApplicationInfo = &VulkanApplicationInfo;
         
         // TODO: Start moving the GLFW init in with the Vulkan init rather than two seperate functions
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions = 0;
         
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        // NOTE: required extension and validation layers for vulkan init
+        uint32_t glfwExtensionCount = 0;
+        const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        
+        std::vector<const char*> AllRequiredExtensions = std::vector<const char*>(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        AllRequiredExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-        VulkanCreateInfo.enabledExtensionCount = glfwExtensionCount;
-        VulkanCreateInfo.ppEnabledExtensionNames = glfwExtensions;
+        VulkanCreateInfo.enabledExtensionCount = AllRequiredExtensions.size();
+        VulkanCreateInfo.ppEnabledExtensionNames = AllRequiredExtensions.data();
+        
+        static const std::vector<const char*> AllRequiredValidationLayers = 
+            //{ "VK_LAYER_KHRONOS_validation" };
+            {};
+        // NOTE: VK_LAYER_KHRONOS_validation is not available
+        /* Available Layers:
+	            VK_LAYER_VALVE_steam_overlay_64
+	            VK_LAYER_VALVE_steam_fossilize_64
+	            VK_LAYER_VALVE_steam_overlay_32
+	            VK_LAYER_VALVE_steam_fossilize_32
+        */
+        VulkanCreateInfo.enabledLayerCount = AllRequiredValidationLayers.size();
+        VulkanCreateInfo.ppEnabledLayerNames = AllRequiredValidationLayers.data();
 
-        VulkanCreateInfo.enabledLayerCount = 0;
-
-        // TODO: Required Extensions        
+        /////////////////// Finish required validation layers and required extension  
+                
 
         VkInstance VulkanInstance = {};        
+
+
+        // NOTE: Debug callback info
+        VkDebugUtilsMessengerCreateInfoEXT CreateDebugMessengerInfo = {};
+        CreateDebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        CreateDebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT 
+                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT 
+                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        CreateDebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT 
+                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT 
+                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        CreateDebugMessengerInfo.pfnUserCallback = VulkanCallbacksAndInitialization::VulkanDebugCallback;
+        CreateDebugMessengerInfo.pUserData = nullptr; // would be passed to debug callback
+
+        VulkanCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&CreateDebugMessengerInfo;
 
         // NOTE: nullptr here is used for custom memory allocation - look into docs for making custom allocators    
         VkResult VulkanInitializationResult = vkCreateInstance(&VulkanCreateInfo, nullptr, &VulkanInstance);
@@ -79,16 +113,29 @@ namespace VulkanCallbacksAndInitialization
             default: { fprintf(stderr, "Failed To Initialize Vulkan\n"); return NULL; };
         }       
         
-        VkDebugUtilsMessengerCreateInfoEXT CreateDebugMessengerInfo = {};
-        CreateDebugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        CreateDebugMessengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT 
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT 
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        CreateDebugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT 
-                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT 
-                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        CreateDebugMessengerInfo.pfnUserCallback = VulkanCallbacksAndInitialization::VulkanDebugCallback;
-        CreateDebugMessengerInfo.pUserData = nullptr; // would be passed to debug callback
+
+        // Checking available layers and available extensions
+        uint32_t AvailableLayerCount = 0;
+        vkEnumerateInstanceLayerProperties(&AvailableLayerCount, nullptr);
+        std::vector<VkLayerProperties> AvailableLayerNames (AvailableLayerCount);
+        vkEnumerateInstanceLayerProperties(&AvailableLayerCount, AvailableLayerNames.data());
+        
+        fprintf(stdout, "\n\tAvailableLayers:\n");
+        for(const auto& LayerProperties : AvailableLayerNames)
+        {
+            fprintf(stdout, "\t%s\n", LayerProperties.layerName);
+        }
+
+        uint32_t AvailableExtensionCount = 0;
+        VkResult AvailableExtensionResult = vkEnumerateInstanceExtensionProperties(nullptr, &AvailableExtensionCount, nullptr);
+        std::vector<VkExtensionProperties> AllAvailableExtensions (AvailableExtensionCount);
+        AvailableExtensionResult = vkEnumerateInstanceExtensionProperties(nullptr, &AvailableExtensionCount, AllAvailableExtensions.data());
+        
+        fprintf(stdout, "\n\tAvailable Extensions:\n");
+        for(const auto& ExtensionProperties : AllAvailableExtensions)
+        {
+            fprintf(stdout, "\t%s\n", ExtensionProperties.extensionName);
+        }
 
         auto ExtensionFunctionForCallback = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(VulkanInstance, "vkCreateDebugUtilsMessengerEXT");
         if(ExtensionFunctionForCallback)
