@@ -1,4 +1,4 @@
-*.out
-*.gpr
-*.rep
-*.lock
+/*/*.out
+/*/*.gpr
+/*/*.rep
+/*/*.lock
